@@ -18,23 +18,14 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := epoller.Add(conn); err != nil {
-		log.Printf("Failed to add connection")
+		log.Printf("Failed to add connection %v", err)
 		conn.Close()
 	}
-	//// Read messages from socket
-	//for {
-	//	_, msg, err := conn.ReadMessage()
-	//	if err != nil {
-	//		log.Printf("Failed to read message %v", err)
-	//		return
-	//	}
-	//	log.Println(string(msg))
-	//}
 }
 
 func main() {
 	// Increase resources limitations
-	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &syscall.Rlimit{Cur: 1000000, Max: 1000000}); err != nil {
+	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &syscall.Rlimit{Cur: 1048576, Max: 1048576}); err != nil {
 		panic(err)
 	}
 
@@ -55,7 +46,7 @@ func main() {
 	go Start()
 
 	http.HandleFunc("/", wsHandler)
-	if err := http.ListenAndServe(":8000", nil); err != nil {
+	if err := http.ListenAndServe("0.0.0.0:8000", nil); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -71,14 +62,7 @@ func Start() {
 			if conn == nil {
 				break
 			}
-			_, _, err := wsutil.ReadClientData(conn)
-			//msgs, err := wsutil.ReadMessage(conn, ws.StateServerSide, nil)
-			if err != nil {
-				// handle error
-			}
-
-			if err != nil {
-				log.Printf("Failed to read message %v", err)
+			if _, _, err := wsutil.ReadClientData(conn); err != nil {
 				if err := epoller.Remove(conn); err != nil {
 					log.Printf("Failed to remove %v", err)
 				}

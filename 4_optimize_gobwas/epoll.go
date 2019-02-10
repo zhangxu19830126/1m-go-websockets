@@ -2,6 +2,7 @@ package main
 
 import (
 	"golang.org/x/sys/unix"
+	"log"
 	"net"
 	"reflect"
 	"sync"
@@ -36,6 +37,9 @@ func (e *epoll) Add(conn net.Conn) error {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 	e.connections[fd] = conn
+	if len(e.connections)%100 == 0 {
+		log.Printf("Total number of connections: %v", len(e.connections))
+	}
 	return nil
 }
 
@@ -48,6 +52,9 @@ func (e *epoll) Remove(conn net.Conn) error {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 	delete(e.connections, fd)
+	if len(e.connections)%100 == 0 {
+		log.Printf("Total number of connections: %v", len(e.connections))
+	}
 	return nil
 }
 

@@ -8,6 +8,8 @@ import (
 	"syscall"
 )
 
+var epoller *epoll
+
 func wsHandler(w http.ResponseWriter, r *http.Request) {
 	// Upgrade connection
 	upgrader := websocket.Upgrader{}
@@ -15,14 +17,9 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	// Read messages from socket
-	for {
-		_, msg, err := conn.ReadMessage()
-		if err != nil {
-			log.Printf("Failed to read message %v", err)
-			return
-		}
-		log.Println(string(msg))
+	if err := epoller.Add(conn); err != nil {
+		log.Printf("Failed to add connection")
+		conn.Close()
 	}
 }
 
@@ -39,8 +36,40 @@ func main() {
 		}
 	}()
 
+	// Start epoll
+	var err error
+	epoller, err = MkEpoll()
+	if err != nil {
+		panic(err)
+	}
+
+	go Start()
+
 	http.HandleFunc("/", wsHandler)
 	if err := http.ListenAndServe(":8000", nil); err != nil {
 		log.Fatal(err)
+	}
+}
+
+func Start() {
+	for {
+		connections, err := epoller.Wait()
+		if err != nil {
+			log.Printf("Failed to epoll wait %v", err)
+			continue
+		}
+		for _, conn := range connections {
+			if conn == nil {
+				break
+			}
+			_, msg, err := conn.ReadMessage()
+			if err != nil {
+				if err := epoller.Remove(conn); err != nil {
+					log.Printf("Failed to remove %v", err)
+				}
+			} else {
+				log.Printf("msg: %s", string(msg))
+			}
+		}
 	}
 }

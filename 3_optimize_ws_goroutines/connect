@@ -1,3 +1,8 @@
 #!/bin/bash
+CONNECTIONS=$1
+REPLICAS=$2
 go build --tags "static netgo" -o client client.go
-docker run -v $(pwd)/client:/client -ti alpine /client $1
+for (( c=0; c<${REPLICAS}; c++ ))
+do
+    docker run -v $(pwd)/client:/client -d alpine /client ${CONNECTIONS}
+done

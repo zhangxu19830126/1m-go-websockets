@@ -1,3 +1,3 @@
 #!/bin/bash
-go build -o client client.go
-docker run -v $(pwd)/client:/client -ti ubuntu:18.04 /client $1
+go build --tags "static netgo" -o client client.go
+docker run -v $(pwd)/client:/client -ti alpine /client $1

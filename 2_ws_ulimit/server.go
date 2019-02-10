@@ -5,7 +5,11 @@ import (
 	"log"
 	"net/http"
 	_ "net/http/pprof"
+	"sync/atomic"
+	"syscall"
 )
+
+var count int64
 
 func ws(w http.ResponseWriter, r *http.Request) {
 	// Upgrade connection
@@ -14,21 +18,38 @@ func ws(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
+
+	new := atomic.AddInt64(&count, 1)
+	if new%100 == 0 {
+		log.Printf("Total number of connections: %v", new)
+	}
+	defer func() {
+		new := atomic.AddInt64(&count, -1)
+		if new%100 == 0 {
+			log.Printf("Total number of connections: %v", new)
+		}
+	}()
+
 	// Read messages from socket
 	for {
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
-			log.Printf("Failed to read message %v", err)
 			return
 		}
-		log.Println(string(msg))
+		log.Printf("msg: %s", string(msg))
 	}
 }
 
 func main() {
+	// Increase resources limitations
+	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &syscall.Rlimit{Cur: 1000000, Max: 1000000}); err != nil {
+		panic(err)
+	}
+
+	// Enable pprof hooks
 	go func() {
 		if err := http.ListenAndServe("localhost:6060", nil); err != nil {
-			log.Fatalf("Pprof failed:", err)
+			log.Fatalf("Pprof failed: %v", err)
 		}
 	}()
 
@@ -37,4 +58,3 @@ func main() {
 		log.Fatal(err)
 	}
 }
-
