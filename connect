@@ -1,3 +1,0 @@
-#!/bin/bash
-go build --tags "static netgo" -o client client.go
-docker run -v $(pwd)/client:/client -ti alpine /client $1
